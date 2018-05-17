@@ -1,0 +1,27 @@
+{
+  "name": "jingtum-base-lib",
+  "description": "jingtum base lib for wallet and so on.",
+  "main": "jingtum-base.js",
+  "authors": [
+    "landoyjx",
+    "wudan_npm"
+  ],
+  "license": "Apache-2.0",
+  "keywords": [
+    "jingtum",
+    "wallet",
+    "account"
+  ],
+  "moduleType": [
+    "amd"
+  ],
+  "homepage": "",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

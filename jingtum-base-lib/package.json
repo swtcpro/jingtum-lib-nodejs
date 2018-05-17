@@ -1,0 +1,109 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "jingtum-base-lib@^1.0.1",
+        "scope": null,
+        "escapedName": "jingtum-base-lib",
+        "name": "jingtum-base-lib",
+        "rawSpec": "^1.0.1",
+        "spec": ">=1.0.1 <2.0.0",
+        "type": "range"
+      },
+      "/usr/node/peb-app-backend"
+    ]
+  ],
+  "_from": "jingtum-base-lib@>=1.0.1 <2.0.0",
+  "_id": "jingtum-base-lib@1.0.8",
+  "_inCache": true,
+  "_location": "/jingtum-base-lib",
+  "_nodeVersion": "6.10.2",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/jingtum-base-lib-1.0.8.tgz_1492334337450_0.599424792919308"
+  },
+  "_npmUser": {
+    "name": "landoyjx",
+    "email": "landoyjx@163.com"
+  },
+  "_npmVersion": "3.10.10",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "jingtum-base-lib@^1.0.1",
+    "scope": null,
+    "escapedName": "jingtum-base-lib",
+    "name": "jingtum-base-lib",
+    "rawSpec": "^1.0.1",
+    "spec": ">=1.0.1 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/jingtum-base-lib/-/jingtum-base-lib-1.0.8.tgz",
+  "_shasum": "e82124730fe23cd2c7eeca877f1e3f3192810e3f",
+  "_shrinkwrap": null,
+  "_spec": "jingtum-base-lib@^1.0.1",
+  "_where": "/usr/node/peb-app-backend",
+  "author": {
+    "name": "landoyjx,wudan_npm"
+  },
+  "dependencies": {
+    "assert": "^1.4.1",
+    "base-x": "^1.0.4",
+    "bn.js": "^4.11.6",
+    "brorand": "^1.0.6",
+    "elliptic": "^6.3.2",
+    "extend": "^3.0.0",
+    "hash.js": "^1.0.3",
+    "utf8": "^2.1.2"
+  },
+  "description": "jingtum base lib for wallet and so on.",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "gulp": "^3.9.1",
+    "gulp-bump": "^2.5.0",
+    "gulp-concat": "^2.6.0",
+    "gulp-jshint": "^2.0.2",
+    "gulp-rename": "^1.2.2",
+    "gulp-uglify": "^2.0.0",
+    "jshint": "^2.9.4",
+    "map-stream": "0.0.6",
+    "mocha": "^3.1.2",
+    "webpack": "^1.13.3"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "e82124730fe23cd2c7eeca877f1e3f3192810e3f",
+    "tarball": "https://registry.npmjs.org/jingtum-base-lib/-/jingtum-base-lib-1.0.8.tgz"
+  },
+  "gitHead": "bbf30eb08f1b1990517196ea3684475f0c72a06d",
+  "keywords": [
+    "jingtum",
+    "wallet",
+    "account"
+  ],
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "landoyjx",
+      "email": "landoyjx@163.com"
+    },
+    {
+      "name": "wudan_npm",
+      "email": "1872776189@qq.com"
+    }
+  ],
+  "name": "jingtum-base-lib",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "http://git.jingtum.com/root/jingtum-base-lib.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "1.0.8"
+}

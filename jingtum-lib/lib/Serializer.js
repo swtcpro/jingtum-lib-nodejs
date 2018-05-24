@@ -57,6 +57,16 @@ var TRANSACTION_TYPES = {
         ['QualityIn', OPTIONAL],
         ['QualityOut', OPTIONAL]
     ]),
+    RelationSet: [21].concat(base, [
+        ['Target', REQUIRED],
+        ['RelationType', REQUIRED],
+        ['LimitAmount', OPTIONAL]
+    ]),
+    RelationDel: [22].concat(base, [
+        ['Target', REQUIRED],
+        ['RelationType', REQUIRED],
+        ['LimitAmount', OPTIONAL]
+    ]),
     OfferCreate: [7].concat(base, [
         ['TakerPays', REQUIRED],
         ['TakerGets', REQUIRED],
@@ -85,6 +95,14 @@ var TRANSACTION_TYPES = {
         ['FundCode', OPTIONAL],
         ['RemoveCode', OPTIONAL],
         ['ExpireCode', OPTIONAL]
+    ]),
+    ConfigContract: [30].concat(base, [
+        ['Method', REQUIRED],
+        ['Amount', OPTIONAL],
+        ['Payload', OPTIONAL],
+        ['Args', OPTIONAL],
+        ['Destination', OPTIONAL],
+        ['ContractMethod', OPTIONAL]
     ]),
     RemoveContract: [10].concat(base, [
         ['Target', REQUIRED]

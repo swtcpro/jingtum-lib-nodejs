@@ -79,7 +79,7 @@ var FIELDS_MAP = {
         12: 'WalletSize',
         13: 'OwnerCount',
         14: 'DestinationTag',
-        // Skip 15
+        15: "Timestamp",
         16: 'HighQualityIn',
         17: 'HighQualityOut',
         18: 'LowQualityIn',
@@ -98,7 +98,9 @@ var FIELDS_MAP = {
         31: 'ReserveBase',
         32: 'ReserveIncrement',
         33: 'SetFlag',
-        34: 'ClearFlag'
+        34: 'ClearFlag',
+        35: "RelationType",
+        36: "Method"
     },
     3: { // Int64
         1: 'IndexNext',
@@ -157,7 +159,10 @@ var FIELDS_MAP = {
         11: 'CreateCode',
         12: 'MemoType',
         13: 'MemoData',
-        14: 'MemoFormat'
+        14: 'MemoFormat',
+        15: 'Payload',
+        17: 'ContractMethod',
+        18: 'Parameter'
     },
     8: { // Account
         1: 'Account',
@@ -177,7 +182,8 @@ var FIELDS_MAP = {
         7: 'FinalFields',
         8: 'NewFields',
         9: 'TemplateEntry',
-        10: 'Memo'
+        10: 'Memo',
+        11: 'Arg'
     },
     15: { // Array
         1: void(0),  //end of Array
@@ -188,7 +194,8 @@ var FIELDS_MAP = {
         6: 'Necessary',
         7: 'Sufficient',
         8: 'AffectedNodes',
-        9: 'Memos'
+        9: 'Memos',
+        10: 'Args'
     },
 
     // Uncommon types
@@ -233,6 +240,7 @@ var INVERSE_FIELDS_MAP = {
     WalletSize: [2, 12],
     OwnerCount: [2, 13],
     DestinationTag: [2, 14],
+    Timestamp: [2, 15],
     HighQualityIn: [2, 16],
     HighQualityOut: [2, 17],
     LowQualityIn: [2, 18],
@@ -252,6 +260,8 @@ var INVERSE_FIELDS_MAP = {
     ReserveIncrement: [2, 32],
     SetFlag: [2, 33],
     ClearFlag: [2, 34],
+    RelationType: [2, 35],
+    Method: [2,36],
     IndexNext: [3, 1],
     IndexPrevious: [3, 2],
     BookNode: [3, 3],
@@ -301,6 +311,9 @@ var INVERSE_FIELDS_MAP = {
     MemoType: [7, 12],
     MemoData: [7, 13],
     MemoFormat: [7, 14],
+    Payload: [7, 15],
+    ContractMethod: [7, 17],
+    Parameter: [7, 18],
     Account: [8, 1],
     Owner: [8, 2],
     Destination: [8, 3],
@@ -317,6 +330,7 @@ var INVERSE_FIELDS_MAP = {
     NewFields: [14, 8],
     TemplateEntry: [14, 9],
     Memo: [14, 10],
+    Arg: [14, 11],
     SigningAccounts: [15, 2],
     TxnSignatures: [15, 3],
     Signatures: [15, 4],
@@ -325,6 +339,7 @@ var INVERSE_FIELDS_MAP = {
     Sufficient: [15, 7],
     AffectedNodes: [15, 8],
     Memos: [15, 9],
+    Args: [15, 10],
     CloseResolution: [16, 1],
     TemplateEntryType: [16, 2],
     TransactionResult: [16, 3],
@@ -729,7 +744,7 @@ STInt64.id = 3;
 var STHash128 = exports.Hash128 = new SerializedType({
     serialize: function (so, val) {
         //var hash = UInt128.from_json(val);
-        if (isString(val) && /^[0-9A-F]{0,16}$/i.test(val)
+        if (isString(val) && /^[0-9A-F]{0,32}$/i.test(val)
             && val.length <= 32) {
 
             serializeHex(so, val, true); //noLength = true
@@ -758,7 +773,7 @@ STHash128.id = 4;
 
 var STHash256 = exports.Hash256 = new SerializedType({
     serialize: function (so, val) {
-        if (isString(val) && /^[0-9A-F]{0,16}$/i.test(val)
+        if (isString(val) && /^[0-9A-F]{0,64}$/i.test(val)
             && val.length <= 64) {
 
             serializeHex(so, val, true); //noLength = true
@@ -1335,6 +1350,61 @@ var STMemo = exports.STMemo = new SerializedType({
 
 });
 
+var STArg = exports.STArg = new SerializedType({
+    serialize: function (so, val, no_marker) {
+        var keys = [];
+
+        Object.keys(val).forEach(function (key) {
+            // Ignore lowercase field names - they're non-serializable fields by
+            // convention.
+            if (key[0] === key[0].toLowerCase()) {
+                return;
+            }
+
+            //Check the field
+            if (typeof INVERSE_FIELDS_MAP[key] === 'undefined') {
+                throw new Error('JSON contains unknown field: "' + key + '"');
+            }
+
+            keys.push(key);
+        });
+
+
+        // Sort fields
+        keys = sort_fields(keys);
+
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            var value = val[key];
+            switch (key) {
+                // Parameter is a hex string
+                case 'Parameter':
+                    if (isString(value)) {
+                        serialize(so, key, value);
+                    }
+                    break;
+            }
+        }
+
+        if (!no_marker) {
+            //Object ending marker
+            STInt8.serialize(so, 0xe1);
+        }
+
+    },
+    parse: function (so) {
+        var output = {};
+        while (so.peek(1)[0] !== 0xe1) {
+            var keyval = parse(so);
+            output[keyval[0]] = keyval[1];
+        }
+
+        so.read(1);
+        return output;
+    }
+
+});
+
 exports.serialize = exports.serialize_whatever = serialize;
 
 /*
@@ -1372,6 +1442,15 @@ function get_transaction_type(structure) {
                 case 20:
                     output = 'TrustSet';
                     break;
+                case 21:
+                    output='RelationSet';
+                    break;
+                case 22:
+                    output='RelationDel';
+                    break;
+                case 30:
+                    output='ConfigContract';
+                    break;
                 case 100:
                     output = 'EnableFeature';
                     break;
@@ -1408,6 +1487,15 @@ function get_transaction_type(structure) {
                     break;
                 case 'TrustSet':
                     output = 20;
+                    break;
+                case 'RelationSet':
+                    output=21;
+                    break;
+                case 'RelationDel':
+                    output=22;
+                    break;
+                case 'ConfigContract':
+                    output=30;
                     break;
                 case 'EnableFeature':
                     output = 100;
@@ -1686,6 +1774,8 @@ function serialize(so, field_name, value) {
     if (field_name === 'Memo' && typeof value === 'object') {
         // for Memo we override the default behavior with our STMemo serializer
         serialized_object_type = exports.STMemo;
+    } else if(field_name === 'Arg' && typeof value === 'object'){
+        serialized_object_type = exports.STArg;
     } else {
         // for a field based on the type bits.
         serialized_object_type = exports[TYPES_MAP[type_bits]];
@@ -1719,9 +1809,14 @@ function parse(so) {
     assert(field_name, 'Unknown field - header byte is 0x' + tag_byte.toString(16));
 
     // Get the parser class (ST...) for a field based on the type bits.
-    var type = (field_name === 'Memo')
-        ? exports.STMemo
-        : exports[TYPES_MAP[type_bits]];
+    var type;
+    if(field_name === 'Memo'){
+        type = exports.STMemo;
+    }else if(field_name === 'Arg'){
+        type = exports.STArg;
+    }else{
+        type =  exports[TYPES_MAP[type_bits]];
+    }
 
     assert(type, 'Unknown type - header byte is 0x' + tag_byte.toString(16));
 

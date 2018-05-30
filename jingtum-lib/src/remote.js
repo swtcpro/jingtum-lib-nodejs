@@ -831,6 +831,7 @@ Remote.prototype.callContractTx = function(options) {
     var account = options.account;
     var des = options.destination;
     var params = options.params;
+    var foo = options.foo; //函数名
     if (!utils.isValidAddress(account)) {
         tx.tx_json.account = new Error('invalid address');
         return tx;
@@ -844,19 +845,26 @@ Remote.prototype.callContractTx = function(options) {
         tx.tx_json.params =  new Error('invalid options type');
         return tx;
     }
+    if(typeof foo !== 'string'){
+        tx.tx_json.foo =  new Error('foo must be string');
+        return tx;
+    }
 
     tx.tx_json.TransactionType = 'ConfigContract';
     tx.tx_json.Account = account;
     tx.tx_json.Method = 1;
-    tx.tx_json.ContractMethod = '666f6f';
+    tx.tx_json.ContractMethod = utils.stringToHex(foo);
     tx.tx_json.Destination = des;
     tx.tx_json.Args = [];
     for(var i in params){
+        if(typeof params[i] !== 'string'){
+            tx.tx_json.params =  new Error('params must be string');
+            return tx;
+        }
         var obj = {};
         obj.Arg = {Parameter : utils.stringToHex(params[i])};
         tx.tx_json.Args.push(obj);
     }
-
     return tx;
 };
 

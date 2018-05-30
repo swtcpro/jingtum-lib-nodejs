@@ -335,7 +335,7 @@ Transaction.prototype.submit = function(callback) {
     if(self._remote._local_sign){//签名之后传给底层
         self.sign(function (err, blob) {
             if(err){
-                return callback('sign error: ', err);
+                return callback('sign error: ' + err);
             }else{
                 var data = {
                     tx_blob: self.tx_json.blob

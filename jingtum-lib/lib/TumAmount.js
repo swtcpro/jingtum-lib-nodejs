@@ -6,7 +6,8 @@ var extend = require('extend');
 var base_wallet = require('jingtum-base-lib').Wallet;
 var BigInteger = require('bn.js');
 var isTumCode = require('./DataCheck').isTumCode;
-
+const CURRENCY_NAME_LEN = 3;//货币长度
+const CURRENCY_NAME_LEN2 = 6;//货币长度
 //
 // Amount class in the style of Java's BigInteger class
 // https://docs.oracle.com/javase/7/docs/api/java/math/BigInteger.html
@@ -286,12 +287,13 @@ Amount.prototype.tum_to_bytes = function () {
     }
 
     //Only handle the currency with correct symbol
-    if (this._currency.length === 3) {
-        var currencyCode = this._currency.toUpperCase();
-
-        currencyData[12] = currencyCode.charCodeAt(0) & 0xff;
-        currencyData[13] = currencyCode.charCodeAt(1) & 0xff;
-        currencyData[14] = currencyCode.charCodeAt(2) & 0xff;
+    if (this._currency.length >= CURRENCY_NAME_LEN && this._currency.length <= CURRENCY_NAME_LEN2) {
+        var currencyCode = this._currency;//区分大小写
+        var end = 14;
+        var len = currencyCode.length - 1;
+        for(var j = len; j >= 0; j--){
+            currencyData[end - j] = currencyCode.charCodeAt(len - j) & 0xff;
+        }
     }else if (this._currency.length === 40){
         //for TUM code start with 8
         //should be HEX code

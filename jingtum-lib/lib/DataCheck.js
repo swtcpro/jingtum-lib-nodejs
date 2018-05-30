@@ -17,6 +17,7 @@
  * Data functions used to check the valid data types.
 */
 const CURRENCY_NAME_LEN = 3;
+const CURRENCY_NAME_LEN2 = 6;
 const TUM_NAME_LEN = 40;
 const base = require('jingtum-base-lib').Wallet;
 
@@ -66,7 +67,7 @@ function isLetterNumer(in_str) {
 
 //return true if the code is 3 letters/numbers
 function isCurrency(in_code) {
-    return typeof(in_code) === 'string' ? (in_code && in_code.length === CURRENCY_NAME_LEN ? ( in_code === in_code.toUpperCase() ? true : false) : false) : false;
+    return typeof(in_code) === 'string' ? (in_code && in_code.length >= CURRENCY_NAME_LEN && in_code.length <= CURRENCY_NAME_LEN2 ? true : false) : false;
 }
 
 

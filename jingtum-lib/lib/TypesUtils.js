@@ -16,6 +16,8 @@ var BN = require('bn.js');
 var UInt160 = require('./uint160').UInt160;
 var tum = require('./TumAmount');
 var Amount = tum.Amount;
+const CURRENCY_NAME_LEN = 3;//货币长度
+const CURRENCY_NAME_LEN2 = 6;//货币长度
 
 /**
  * Data type map.
@@ -98,7 +100,9 @@ var FIELDS_MAP = {
         31: 'ReserveBase',
         32: 'ReserveIncrement',
         33: 'SetFlag',
-        34: 'ClearFlag'
+        34: 'ClearFlag',
+        36: 'Method',
+        39: 'Contracttype'
     },
     3: { // Int64
         1: 'IndexNext',
@@ -157,7 +161,10 @@ var FIELDS_MAP = {
         11: 'CreateCode',
         12: 'MemoType',
         13: 'MemoData',
-        14: 'MemoFormat'
+        14: 'MemoFormat',
+        15: 'Payload',
+        17: 'ContractMethod',
+        18: 'Parameter'
     },
     8: { // Account
         1: 'Account',
@@ -177,7 +184,8 @@ var FIELDS_MAP = {
         7: 'FinalFields',
         8: 'NewFields',
         9: 'TemplateEntry',
-        10: 'Memo'
+        10: 'Memo',
+        11: 'Arg'
     },
     15: { // Array
         1: void(0),  //end of Array
@@ -188,7 +196,8 @@ var FIELDS_MAP = {
         6: 'Necessary',
         7: 'Sufficient',
         8: 'AffectedNodes',
-        9: 'Memos'
+        9: 'Memos',
+        10: 'Args'
     },
 
     // Uncommon types
@@ -252,6 +261,8 @@ var INVERSE_FIELDS_MAP = {
     ReserveIncrement: [2, 32],
     SetFlag: [2, 33],
     ClearFlag: [2, 34],
+    Method: [2, 36],
+    Contracttype: [2, 39],
     IndexNext: [3, 1],
     IndexPrevious: [3, 2],
     BookNode: [3, 3],
@@ -301,6 +312,9 @@ var INVERSE_FIELDS_MAP = {
     MemoType: [7, 12],
     MemoData: [7, 13],
     MemoFormat: [7, 14],
+    Payload: [7, 15],
+    ContractMethod: [7, 17],
+    Parameter: [7, 18],
     Account: [8, 1],
     Owner: [8, 2],
     Destination: [8, 3],
@@ -317,6 +331,7 @@ var INVERSE_FIELDS_MAP = {
     NewFields: [14, 8],
     TemplateEntry: [14, 9],
     Memo: [14, 10],
+    Arg: [14, 11],
     SigningAccounts: [15, 2],
     TxnSignatures: [15, 3],
     Signatures: [15, 4],
@@ -325,6 +340,7 @@ var INVERSE_FIELDS_MAP = {
     Sufficient: [15, 7],
     AffectedNodes: [15, 8],
     Memos: [15, 9],
+    Args: [15, 10],
     CloseResolution: [16, 1],
     TemplateEntryType: [16, 2],
     TransactionResult: [16, 3],
@@ -819,11 +835,15 @@ var STCurrency = new SerializedType({
         //For Tum code with 3 letters/digits, such as
         //CNY, USD, 
         //treat 
-          var currencyCode = j.toUpperCase();
-          if (currencyCode.length === 3){
-            val[12] = currencyCode.charCodeAt(0) & 0xff;
-            val[13] = currencyCode.charCodeAt(1) & 0xff;
-            val[14] = currencyCode.charCodeAt(2) & 0xff;
+        //   var currencyCode = j.toUpperCase();
+          var currencyCode = j;
+
+          if (currencyCode.length >= CURRENCY_NAME_LEN && currencyCode.length <= CURRENCY_NAME_LEN2){
+              var end = 14;
+              var len = currencyCode.length - 1;
+              for(var x = len; x >= 0; x--){
+                  val[end - x] = currencyCode.charCodeAt(len - x) & 0xff;
+              }
           }
 
         }else{

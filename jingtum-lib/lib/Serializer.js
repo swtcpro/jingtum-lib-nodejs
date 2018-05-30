@@ -98,6 +98,15 @@ var TRANSACTION_TYPES = {
         ['ReferenceFeeUnits', REQUIRED],
         ['ReserveBase', REQUIRED],
         ['ReserveIncrement', REQUIRED]
+    ]),
+    ConfigContract: [30].concat(base,[
+        ['Method', REQUIRED],
+        ['Payload', OPTIONAL],
+        ['Destination', OPTIONAL],
+        ['Amount', OPTIONAL],
+        ['Contracttype', OPTIONAL],
+        ['ContractMethod', OPTIONAL],
+        ['Args', OPTIONAL]
     ])
 };
 

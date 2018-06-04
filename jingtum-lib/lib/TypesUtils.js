@@ -81,7 +81,7 @@ var FIELDS_MAP = {
         12: 'WalletSize',
         13: 'OwnerCount',
         14: 'DestinationTag',
-        // Skip 15
+        15: "Timestamp", 
         16: 'HighQualityIn',
         17: 'HighQualityOut',
         18: 'LowQualityIn',
@@ -101,6 +101,7 @@ var FIELDS_MAP = {
         32: 'ReserveIncrement',
         33: 'SetFlag',
         34: 'ClearFlag',
+        35: "RelationType", 
         36: 'Method',
         39: 'Contracttype'
     },
@@ -242,6 +243,7 @@ var INVERSE_FIELDS_MAP = {
     WalletSize: [2, 12],
     OwnerCount: [2, 13],
     DestinationTag: [2, 14],
+    Timestamp: [2, 15], 
     HighQualityIn: [2, 16],
     HighQualityOut: [2, 17],
     LowQualityIn: [2, 18],
@@ -261,6 +263,7 @@ var INVERSE_FIELDS_MAP = {
     ReserveIncrement: [2, 32],
     SetFlag: [2, 33],
     ClearFlag: [2, 34],
+    RelationType: [2, 35], 
     Method: [2, 36],
     Contracttype: [2, 39],
     IndexNext: [3, 1],
@@ -1392,6 +1395,15 @@ function get_transaction_type(structure) {
                 case 20:
                     output = 'TrustSet';
                     break;
+                case 21: 
+                    output='RelationSet'; 
+                    break;
+                case 22:
+                    output='RelationDel'; 
+                    break;
+                case 30:
+                    output='ConfigContract'; 
+                    break;
                 case 100:
                     output = 'EnableFeature';
                     break;
@@ -1428,6 +1440,15 @@ function get_transaction_type(structure) {
                     break;
                 case 'TrustSet':
                     output = 20;
+                    break;
+                case 'RelationSet': 
+                    output = 21;
+                    break;
+                case 'RelationDel': 
+                    output = 22;
+                    break;
+                case 'ConfigContract': 
+                    output = 30;
                     break;
                 case 'EnableFeature':
                     output = 100;

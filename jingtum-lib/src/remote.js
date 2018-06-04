@@ -943,7 +943,7 @@ Remote.prototype.__buildRelationSet = function(options, tx) {
     tx.tx_json.TransactionType =  options.type === 'unfreeze' ? 'RelationDel' : 'RelationSet';
     tx.tx_json.Account = src;
     tx.tx_json.Target = des;
-    tx.tx_json.RelationType = options.type === 'authorize' ? '1' : '3';
+    tx.tx_json.RelationType = options.type === 'authorize' ? 1 : 3;
     if (limit !== void(0)) {
         tx.tx_json.LimitAmount = limit;
     }

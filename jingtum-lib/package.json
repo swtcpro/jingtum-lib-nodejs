@@ -14,7 +14,7 @@
     ]
   ],
   "_from": "jingtum-lib@latest",
-  "_id": "jingtum-lib@1.2.6",
+  "_id": "jingtum-lib@1.3.1",
   "_inCache": true,
   "_location": "/jingtum-lib",
   "_nodeVersion": "8.9.4",
@@ -43,7 +43,7 @@
   "_requiredBy": [
     "#USER"
   ],
-  "_resolved": "https://registry.npmjs.org/jingtum-lib/-/jingtum-lib-1.2.6.tgz",
+  "_resolved": "https://registry.npmjs.org/jingtum-lib/-/jingtum-lib-1.3.1.tgz",
   "_shasum": "d86bf5229ed784d2b3b9bd805199c24f73272d08",
   "_shrinkwrap": null,
   "_spec": "jingtum-lib",
@@ -52,6 +52,7 @@
     "name": "jingtum inc."
   },
   "dependencies": {
+    "bn-plus.js": "^1.0.0",
     "bignumber.js": "^5.0.0",
     "extend": "^3.0.0",
     "jingtum-base-lib": "^1.0.9",
@@ -109,5 +110,5 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "1.3.0"
+  "version": "1.3.1"
 }

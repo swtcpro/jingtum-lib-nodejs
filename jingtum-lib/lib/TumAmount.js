@@ -4,7 +4,7 @@
 
 var extend = require('extend');
 var base_wallet = require('jingtum-base-lib').Wallet;
-var BigInteger = require('bn.js');
+var BigInteger = require('bn-plus.js');
 var isTumCode = require('./DataCheck').isTumCode;
 const CURRENCY_NAME_LEN = 3;//货币长度
 const CURRENCY_NAME_LEN2 = 6;//货币长度

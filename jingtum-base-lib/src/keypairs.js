@@ -151,3 +151,32 @@ exports.checkAddress = function(address) {
 		return false;
 	}	
 };
+
+/**
+ * convert the input address to byte array
+ *
+ * @param address
+ * @returns byte array
+ */
+exports.convertAddressToBytes  = function(address) {
+    try {
+        return __decode(ACCOUNT_PREFIX, address);
+
+    } catch (err) {
+        throw new Error('convertAddressToBytes error!');
+    }
+};
+
+/*
+ * Convert a byte array to a wallet address string
+ *
+*/
+//Wallet.prototype.convertBytesToAddress= function(bytes) {
+exports.convertBytesToAddress= function(bytes) {
+    try {
+        return __encode(ACCOUNT_PREFIX, bytes);
+
+    } catch (err) {
+        throw new Error('convertBytesToAddress error!');
+    }
+};

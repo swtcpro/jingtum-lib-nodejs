@@ -83,6 +83,8 @@ Wallet.prototype.sign = function(message) {
 	if (!message || message.length === 0) return null;
 	if (!this._keypairs) return null;
 	var privateKey = this._keypairs.privateKey;
+
+	 // Export DER encoded signature in Array
 	return bytesToHex(ec.sign(hash(message), hexToBytes(privateKey), { canonical: true }).toDER());
 };
 
@@ -125,4 +127,40 @@ Wallet.prototype.toJson = function() {
 	};
 };
 
+/*
+ * Get the public key from key pair
+ * used for local signing operation.
+*/
+Wallet.prototype.getPublicKey= function() {
+        if (!this._keypairs) return null;
+        return this._keypairs.publicKey;
+};
+
+/**
+ * sign message with wallet privatekey
+ * Export DER encoded signature in Array
+ * Used for 
+ * @param message
+ * @returns {*}
+ */
+Wallet.prototype.signTx = function(message) {
+	if (!message || message.length === 0) return null;
+	if (!this._keypairs) return null;
+	var privateKey = this._keypairs.privateKey;
+
+	 // Export DER encoded signature in Array
+	return bytesToHex(ec.sign(message, hexToBytes(privateKey), { canonical: true }).toDER());
+};
+
+/**
+ * verify signature with wallet publickey
+ * @param message
+ * @param signature
+ * @returns {*}
+ */
+Wallet.prototype.verifyTx = function(message, signature) {
+	if (!this._keypairs) return null;
+	var publicKey = this._keypairs.publicKey;
+	return ec.verify(message, signature, hexToBytes(publicKey));
+};
 module.exports = Wallet;

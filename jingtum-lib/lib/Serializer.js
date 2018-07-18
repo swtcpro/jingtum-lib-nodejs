@@ -256,7 +256,7 @@ function get_dec_from_hexchar(in_char) {
 //Input is not even, add 0 to the end.
 //a0c -> a0 c0
 function hex_str_to_byte_array(in_str) {
-    var i, out = [], len;
+    var i, out = [];
     var str = in_str.replace(/\s|0x/g, "");
     for (i = 0; i < str.length; i += 2) {
         if (i + 1 > str.length)
@@ -281,7 +281,7 @@ function get_char_from_num(in_num) {
 */
 Serializer.prototype.bytes_to_str = function (in_buf) {
     //return sjcl.codec.hex.fromBits(this.to_bits()).toUpperCase();
-    var i, out = "", len;
+    var i, out = "", tmp;
 
     for (i = 0; i < in_buf.length; i++) {
         tmp = (in_buf[i] & 0xF0) >> 4;

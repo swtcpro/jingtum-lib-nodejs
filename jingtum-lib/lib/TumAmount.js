@@ -5,6 +5,7 @@
 var extend = require('extend');
 var base_wallet = require('jingtum-base-lib').Wallet;
 var BigInteger = require('bn-plus.js');
+var bignumber = require('bignumber.js');
 var isTumCode = require('./DataCheck').isTumCode;
 const CURRENCY_NAME_LEN = 3;//货币长度
 const CURRENCY_NAME_LEN2 = 6;//货币长度
@@ -145,11 +146,11 @@ Amount.prototype.parse_json = function (in_json) {
                         this._issuer = in_json.issuer;
                         //TODO, need to find a better way for extracting the exponent and digits
                         var vpow = new Number(in_json.value);
-                        vpow = String(vpow.toExponential(16));
+                        vpow = String(vpow.toExponential());
                         vpow = Number(vpow.substr(vpow.lastIndexOf("e") + 1));
                         var offset = 15 - vpow;
                         var factor = Math.pow(10, offset);
-                        var newvalue = in_json.value * factor;
+                        var newvalue = (new bignumber(in_json.value).mul(factor)).toString();
                         this._value = new BigInteger(newvalue, 10);
                         this._offset = -1 * offset;
                     } else {

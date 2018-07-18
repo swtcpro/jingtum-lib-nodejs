@@ -3,6 +3,7 @@ var util = require('util');
 var Event = require('events').EventEmitter;
 var utf8 = require('utf8');
 var utils = require('./utils');
+var baselib = require('jingtum-base-lib').Wallet;
 const fee = require('./config').fee || 10000;
 /**
  * Post request to server with account secret
@@ -110,6 +111,10 @@ Transaction.prototype.getTransactionType = function() {
  * @param secret
  */
 Transaction.prototype.setSecret = function(secret) {
+    if(!baselib.isValidSecret(secret)){
+        this.tx_json._secret = new Error('valid secret');
+        return;
+    }
     this._secret = secret;
 };
 
@@ -274,44 +279,64 @@ Transaction.prototype.setFlags = function(flags) {
     }
 };
 
-Transaction.prototype.sign = function(callback) {
+/* set sequence */
+Transaction.prototype.setSequence = function(sequence) {
+    if (!/^\+?[1-9][0-9]*$/.test(sequence)) {//正整数
+        this.tx_json.Sequence = new TypeError('invalid sequence');
+        return this;
+    }
+
+    this.tx_json.Sequence = Number(sequence);
+};
+function signing(self) {
     const base = require('jingtum-base-lib').Wallet;
     var jser = require('../lib/Serializer').Serializer;
+    self.tx_json.Fee = self.tx_json.Fee/1000000;
+
+    //payment
+    if(self.tx_json.Amount && JSON.stringify(self.tx_json.Amount).indexOf('{') < 0){//基础货币
+        self.tx_json.Amount = Number(self.tx_json.Amount)/1000000;
+    }
+    if(self.tx_json.Memos){
+        var memos = self.tx_json.Memos;
+        for(var i = 0; i < memos.length; i++){
+            memos[i].Memo.MemoData = utf8.decode(__hexToString(memos[i].Memo.MemoData));
+        }
+    }
+    if(self.tx_json.SendMax && typeof self.tx_json.SendMax === 'string'){
+        self.tx_json.SendMax = Number(self.tx_json.SendMax)/1000000;
+    }
+
+    //order
+    if(self.tx_json.TakerPays && JSON.stringify(self.tx_json.TakerPays).indexOf('{') < 0){//基础货币
+        self.tx_json.TakerPays = Number(self.tx_json.TakerPays)/1000000;
+    }
+    if(self.tx_json.TakerGets && JSON.stringify(self.tx_json.TakerGets).indexOf('{') < 0){//基础货币
+        self.tx_json.TakerGets = Number(self.tx_json.TakerGets)/1000000;
+    }
+
+    var wt = new base(self._secret);
+    self.tx_json.SigningPubKey = wt.getPublicKey();
+    var prefix = 0x53545800;
+    var hash = jser.from_json(self.tx_json).hash(prefix);
+    self.tx_json.TxnSignature = wt.signTx(hash);
+    self.tx_json.blob =  jser.from_json(self.tx_json).to_hex();
+    self._local_sign = true;
+    return self.tx_json.blob;
+}
+
+Transaction.prototype.sign = function(callback) {
     var self = this;
-    var req = this._remote.requestAccountInfo({account: self.tx_json.Account, type: 'trust'});
-    req.submit(function (err,data) {
-        if(err) return callback(err);
-        self.tx_json.Sequence = data.account_data.Sequence;
-        self.tx_json.Fee = self.tx_json.Fee/1000000;
-
-        //payment
-        if(self.tx_json.Amount && JSON.stringify(self.tx_json.Amount).indexOf('{') < 0){//基础货币
-            self.tx_json.Amount = Number(self.tx_json.Amount)/1000000;
-        }
-        if(self.tx_json.Memos){
-            self.tx_json.Memos[0].Memo.MemoData = utf8.decode(__hexToString(self.tx_json.Memos[0].Memo.MemoData));
-        }
-        if(self.tx_json.SendMax && typeof self.tx_json.SendMax === 'string'){
-            self.tx_json.SendMax = Number(self.tx_json.SendMax)/1000000;
-        }
-
-        //order
-        if(self.tx_json.TakerPays && JSON.stringify(self.tx_json.TakerPays).indexOf('{') < 0){//基础货币
-            self.tx_json.TakerPays = Number(self.tx_json.TakerPays)/1000000;
-        }
-        if(self.tx_json.TakerGets && JSON.stringify(self.tx_json.TakerGets).indexOf('{') < 0){//基础货币
-            self.tx_json.TakerGets = Number(self.tx_json.TakerGets)/1000000;
-        }
-
-        var wt = new base(self._secret);
-        self.tx_json.SigningPubKey = wt.getPublicKey();
-        var prefix = 0x53545800;
-        var hash = jser.from_json(self.tx_json).hash(prefix);
-        self.tx_json.TxnSignature = wt.signTx(hash);
-        self.tx_json.blob =  jser.from_json(self.tx_json).to_hex();
-        self._local_sign = true;
-        callback(null,self.tx_json.blob);
-    });
+    if(self.tx_json.Sequence){
+        callback(null, signing(self));
+    }else {
+        var req = this._remote.requestAccountInfo({account: self.tx_json.Account, type: 'trust'});
+        req.submit(function (err,data) {
+            if(err) return callback(err);
+            self.tx_json.Sequence = data.account_data.Sequence;
+            callback(null, signing(self));
+        });
+    }
 };
 
 /**

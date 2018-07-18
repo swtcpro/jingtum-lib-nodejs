@@ -261,14 +261,27 @@ Remote.prototype._submit = function(command, data, filter, callback) {
 Remote.prototype.requestServerInfo = function() {
     return new Request(this, 'server_info', function(data) {
         return {
-            version: data.info.build_version,
-            ledgers: data.info.complete_ledgers,
-            node: data.info.pubkey_node,
-            state: data.info.server_state
+            complete_ledgers: data.info.complete_ledgers,
+            ledger: data.info.validated_ledger.hash,
+            public_key: data.info.pubkey_node,
+            state: data.info.server_state,
+            peers: data.info.peers,
+            version: 'skywelld-' + data.info.build_version
         };
     });
 };
 
+/**
+ * request peers info
+ * return version, ledger, state and node id
+ * no option is required
+ * @returns {Request}
+ */
+Remote.prototype.requestPeers = function() {
+    return new Request(this, 'peers', function(data) {
+        return data;
+    });
+};
 /**
  * request last closed ledger index and hash
  * @returns {Request}

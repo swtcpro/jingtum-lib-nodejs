@@ -57,6 +57,16 @@ var TRANSACTION_TYPES = {
         ['QualityIn', OPTIONAL],
         ['QualityOut', OPTIONAL]
     ]),
+    RelationSet: [21].concat(base, [ 
+        ['Target', REQUIRED], 
+        ['RelationType', REQUIRED], 
+        ['LimitAmount', OPTIONAL] 
+    ]), 
+    RelationDel: [22].concat(base, [ 
+        ['Target', REQUIRED], 
+        ['RelationType', REQUIRED], 
+        ['LimitAmount', OPTIONAL] 
+    ]), 
     OfferCreate: [7].concat(base, [
         ['TakerPays', REQUIRED],
         ['TakerGets', REQUIRED],

@@ -416,7 +416,12 @@ Remote.prototype.__requestAccount = function(type, options, request, filter) {
     // }
     request.message.relation_type = getRelationType(options.type);
     if (account) {
-        request.message.account = account;
+        if(!utils.isValidAddress(account)){
+            request.message.account = new Error('invalid account');
+            return request;
+        }else {
+            request.message.account = account;
+        }
     }
     request.selectLedger(ledger);
 

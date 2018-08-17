@@ -81,6 +81,7 @@ var FIELDS_MAP = {
         12: 'WalletSize',
         13: 'OwnerCount',
         14: 'DestinationTag',
+        // Skip 15
         15: "Timestamp", 
         16: 'HighQualityIn',
         17: 'HighQualityOut',

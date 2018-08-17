@@ -352,7 +352,12 @@ Transaction.prototype.submit = function(callback) {
     }
 
     var data = {};
-    if(self._remote._local_sign){//签名之后传给底层
+    if(self.tx_json.TransactionType === 'Signer'){//直接将blob传给底层
+        data = {
+            tx_blob: self.tx_json.blob
+        };
+        self._remote._submit('submit', data, self._filter, callback);
+    } else if(self._remote._local_sign){//签名之后传给底层
         self.sign(function (err, blob) {
             if(err){
                 return callback('sign error: ' + err);
@@ -363,11 +368,6 @@ Transaction.prototype.submit = function(callback) {
                 self._remote._submit('submit', data, self._filter, callback);
             }
         });
-    }else if(self.tx_json.TransactionType === 'Signer'){//直接将blob传给底层
-        data = {
-            tx_blob: self.tx_json.blob
-        };
-        self._remote._submit('submit', data, self._filter, callback);
     }else{//不签名交易传给底层
         data = {
             secret: self._secret,

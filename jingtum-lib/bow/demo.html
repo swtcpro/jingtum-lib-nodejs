@@ -23,7 +23,7 @@
 
 
     let Remote = lib.Remote;
-    let remote = new Remote({server: 'ws://123.57.219.57:5020'});
+    let remote = new Remote({server: 'ws://123.57.219.57:5020', local_sign: true});
     remote.connect(function () {
 //        获取交易记录详情
         let req = remote.requestTx({hash: '21AA9CC6E646ED3FE2D1FFE0BA3FA528F7FF84D5B3C0E2FD2856F724776CBF92'});

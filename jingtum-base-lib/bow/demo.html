@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>base_lib demo</title>
+    <script src="./base.js"></script>
+</head>
+<body>
+<script type="text/javascript">
+    //browserify -r ./index.js:base -o base.js
+
+    let base = require('base');
+    let Wallet = base.Wallet;
+    console.log('new Wallet: ',Wallet.generate());
+    console.log('fromSecret: ',Wallet.fromSecret('ssvUvQ18TR1Sa2gvjKHRimKLV3hsb'));
+    console.log('isValidAddress: ',Wallet.isValidAddress('jUsUiLdi7txBGW8Sfese6JVP8XTbAWohRy'));
+    console.log('isValidSecret: ',Wallet.isValidSecret('ssvUvQ18TR1Sa2gvjKHRimKLV3hsb'));
+    let w = new Wallet('ssvUvQ18TR1Sa2gvjKHRimKLV3hsb');
+    console.log('getPublicKey: ', w.getPublicKey());
+    console.log('signTx: ', w.signTx('haha'));
+    console.log('verifyTx: ', w.verifyTx('haha', '3045022100BD5127C92E255858752E3B306D2176FBE8297D960A1100E099D82F7D2F6C24F9022001712626F223F4AEDC472CB99650C4419E14A3546F040D11C4C3D0C79571D350'));
+
+    let KeyPair = base.KeyPair;
+    let secret = KeyPair.generateSeed();
+    console.log('generate secret: ', secret);
+    let pairs = KeyPair.deriveKeyPair(secret);
+    console.log('pars: ', pairs);
+    console.log('address: ', KeyPair.deriveAddress(pairs.publicKey));
+    console.log('convertAddressToBytes: ',KeyPair.convertAddressToBytes('jUsUiLdi7txBGW8Sfese6JVP8XTbAWohRy'));
+    console.log('convertBytesToAddress: ',KeyPair.convertBytesToAddress(KeyPair.convertAddressToBytes('jUsUiLdi7txBGW8Sfese6JVP8XTbAWohRy')));
+    console.log('checkAddress: ',KeyPair.checkAddress('jUsUiLdi7txBGW8Sfese6JVP8XTbAWohRy'));
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>lib demo</title>
+    <!--<script src="base.js"></script>-->
+    <script src="lib.js"></script>
+</head>
+<body>
+<script type="text/javascript">
+//    browserify -r ./index.js:jingtum -o lib.js
+
+    let lib = require('jingtum');
+    let Wallet = lib.Wallet;
+    console.log('new Wallet: ',Wallet.generate());
+    console.log('fromSecret: ',Wallet.fromSecret('ssvUvQ18TR1Sa2gvjKHRimKLV3hsb'));
+    console.log('isValidAddress: ',Wallet.isValidAddress('jUsUiLdi7txBGW8Sfese6JVP8XTbAWohRy'));
+    console.log('isValidSecret: ',Wallet.isValidSecret('ssvUvQ18TR1Sa2gvjKHRimKLV3hsb'));
+    let w = new Wallet('ssvUvQ18TR1Sa2gvjKHRimKLV3hsb');
+    console.log('getPublicKey: ', w.getPublicKey());
+    console.log('signTx: ', w.signTx('haha'));
+    console.log('verifyTx: ', w.verifyTx('haha', '3045022100BD5127C92E255858752E3B306D2176FBE8297D960A1100E099D82F7D2F6C24F9022001712626F223F4AEDC472CB99650C4419E14A3546F040D11C4C3D0C79571D350'));
+
+
+    let Remote = lib.Remote;
+    let remote = new Remote({server: 'ws://123.57.219.57:5020'});
+    remote.connect(function () {
+//        获取交易记录详情
+        let req = remote.requestTx({hash: '21AA9CC6E646ED3FE2D1FFE0BA3FA528F7FF84D5B3C0E2FD2856F724776CBF92'});
+
+//        获取账本信息
+//        var req = remote.requestLedger({
+//         ledger_index: 10441932,
+//         // expand: true,
+//         // ledger_hash: '7A1B7BFB893EED40783215BDB1BCB7ED20C3B97CB9B38F768FADACE3ECA25E63',
+//         transactions:true
+//        });
+
+//        获取最新账号号
+//        var req= remote.requestLedgerClosed();
+
+//        获取账号挂单
+//         var options = {account: 'jMouTdrZU56WuQt4L6WgfwaCFkD2k1Xmbr', ledger: 'closed', limit:10, /*marker: '32F9FB0BC6449DE935F085E681560F59630A15B00E24FB1E97ABA60D3C3AF3A9'*/};
+//         var req = remote.requestAccountOffers(options);
+
+//        获取市场挂单
+//         var options = { gets:
+//            { currency: 'CNY',
+//                issuer: 'jBciDE8Q3uJjf111VeiUNM775AMKHEbBLS' },
+//            pays: { currency: 'SWT', issuer: '' },
+//            limit: 15 };//15
+//         var req = remote.requestOrderBook(options);
+
+//        获取账号交易记录
+//        var options = {account: 'jB7rxgh43ncbTX4WeMoeadiGMfmfqY2xLZ', forward:true, limit: 10};
+//        var req = remote.requestAccountTx(options);
+
+//        获取账号信息
+//         var options = {account: 'jB7rxgh43ncbTX4WeMoeadiGMfmfqY2xLZ'};
+//         var req = remote.requestAccountInfo(options);
+
+//         支付
+//         var req = remote.buildPaymentTx({account: 'jB7rxgh43ncbTX4WeMoeadiGMfmfqY2xLZ', to: 'jDUjqoDZLhzx4DCf6pvSivjkjgtRESY62c', amount: {
+//             "value": "0.0003",
+//             "currency": "TEST",
+//             "issuer": "jBciDE8Q3uJjf111VeiUNM775AMKHEbBLS"
+//         }});
+//         req.setSecret('sn37nYrQ6KPJvTFmaBYokS3FjXUWd');
+//         req.addMemo('payment0.0003TEST');
+
+//        挂单
+//        var options = {
+//            type: 'Sell',
+//            source: 'jB7rxgh43ncbTX4WeMoeadiGMfmfqY2xLZ',
+//            taker_gets: {
+//                value: '0.01',
+//                currency: 'TEST',
+//                issuer: 'jBciDE8Q3uJjf111VeiUNM775AMKHEbBLS'
+//            },
+//            taker_pays: {
+//                value: '2',
+//                currency: 'SWT',
+//                issuer: ''
+//            }
+//        };
+//        var req = remote.buildOfferCreateTx(options);
+//        req.setSecret('sn37nYrQ6KPJvTFmaBYokS3FjXUWd');
+
+//        取消挂单
+//         var req = remote.buildOfferCancelTx({source:'jB7rxgh43ncbTX4WeMoeadiGMfmfqY2xLZ', sequence: 16});
+//         req.setSecret('sn37nYrQ6KPJvTFmaBYokS3FjXUWd');
+
+        req.submit(function (err, result) {
+            if(err) console.log(err);
+            else console.log('result: ', result);
+        })
+    });
+
+//     监听账本
+//     remote.on('ledger_closed',function (data) {
+//         console.log('ledger_closed:',data);
+//     });
+
+</script>
+</body>
+</html>

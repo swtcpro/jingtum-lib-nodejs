@@ -13,7 +13,9 @@ var utils = require('./utils');
 var _ = require('lodash');
 const currency = require('./config').currency;
 var bignumber = require('bignumber.js');
-
+var Tum3 = require('tum3');
+var AbiCoder = require('tum3-eth-abi').AbiCoder;
+var KeyPair = require('jingtum-base-lib').KeyPair;
 
 var LEDGER_OPTIONS = ['closed', 'header', 'current'];
 
@@ -175,11 +177,23 @@ Remote.prototype._updateServerStatus = function(data) {
     this._server._setState(online ? 'online' : 'offline');
 };
 
+function getTypes(abi, foo) {
+    return abi.filter(function (json) {
+        return json.name === foo
+    }).map(function (json) {
+        return json.outputs.map(function (input) {
+            return input.type;
+        });
+    }).map(function (types) {
+        return types;
+    })[0] || '';
+}
 /**
  * handle response by every websocket request
  * @param data
  * @private
  */
+
 Remote.prototype._handleResponse = function(data) {
     var req_id = data.id;
     if (typeof req_id !== 'number'
@@ -197,12 +211,65 @@ Remote.prototype._handleResponse = function(data) {
         this._updateServerStatus(data.result);
     }
 
+    var self = this;
     // return to callback
     if (data.status === 'success') {
         var result = request.filter(data.result);
-        request.callback(null, result);
+        if(result.ContractState && result.tx_json.TransactionType === 'AlethContract' && result.tx_json.Method === 1){//调用合约时，如果是获取变量，则转换一下
+            var abi = new AbiCoder();
+            var types = getTypes(self.abi, self.fun);
+            result.ContractState = abi.decodeParameters(types, result.ContractState);
+            types.forEach(function (type, i) {
+                if(type === 'address') {
+                    var adr = result.ContractState[i].slice(2);
+                    var buf = new Buffer(20);
+                    buf.write(adr, 0, 'hex');
+                    result.ContractState[i] = KeyPair.__encode(buf)
+                }
+            });
+
+        }
+        if(result.AlethLog){
+            var logValue = [];
+            var item = {address: '', data: {}};
+            var logs = result.AlethLog;
+            logs.forEach(function (log) {
+                var _log = JSON.parse(log.item);
+                var _adr = _log.address.slice(2);
+                var buf = new Buffer(20);
+                buf.write(_adr, 0, 'hex');
+                item.address = KeyPair.__encode(buf);
+
+                var abi = new AbiCoder();
+                self.abi.filter(function (json) { return json.type === 'event' })
+                    .map(function (json)
+                    {
+                        var types =  json.inputs.map(function (input) {
+                            return input.type;
+                        });
+                        var foo = json.name + '(' + types.join(',')  + ')';
+                        if(abi.encodeEventSignature(foo) === _log.topics[0]){
+                            var data = abi.decodeLog(json.inputs, _log.data, _log.topics);
+                            json.inputs.forEach(function (input, i) {
+                                if(input.type === 'address'){
+                                    var _adr = data[i].slice(2);
+                                    var buf = new Buffer(20);
+                                    buf.write(_adr, 0, 'hex');
+                                    item.data[i] = KeyPair.__encode(buf);
+                                }else {
+                                    item.data[i] = data[i];
+                                }
+                            });
+                        }
+                    });
+
+                logValue.push(item);
+            });
+            result.AlethLog = logValue;
+        }
+        request && request.callback(null, result);
     } else if (data.status === 'error') {
-        request.callback(data.error_message || data.error_exception);
+        request && request.callback(data.error_message || data.error_exception);
     }
 };
 
@@ -330,13 +397,18 @@ Remote.prototype.requestLedger = function(options) {
             total_coins: ledger.total_coins
         };
     });
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         request.message.type = new Error('invalid options type');
         return request;
     }
-    if (Number(options.ledger_index)) {
+    if (options.ledger_index && !/^[1-9]\d{0,9}$/.test(options.ledger_index)) {//支持0-10位数字查询
+        request.message.ledger_index = new Error('invalid ledger_index');
+        return request;
+    }
+    if(options.ledger_index){
         request.message.ledger_index = Number(options.ledger_index);
     }
+
     if (utils.isValidHash(options.ledger_hash)) {
         request.message.ledger_hash = options.ledger_hash;
     }
@@ -355,6 +427,32 @@ Remote.prototype.requestLedger = function(options) {
     if ('accounts' in options && typeof(options.accounts) === 'boolean') {
         request.message['accounts'] = options.accounts;
         filter = false;
+    }
+
+    return request;
+};
+
+/*
+* get all accounts at some ledger_index
+* */
+Remote.prototype.requestAccounts = function(options) {
+    var request = new Request(this, 'account_count');
+    if (options === null || typeof options !== 'object') {
+        request.message.type = new Error('invalid options type');
+        return request;
+    }
+    if (options.ledger_index && !/^[1-9]\d{0,9}$/.test(options.ledger_index)) {//支持0-10位数字查询
+        request.message.ledger_index = new Error('invalid ledger_index');
+        return request;
+    }
+    if (options.ledger_index) {
+        request.message.ledger_index = Number(options.ledger_index);
+    }
+    if (utils.isValidHash(options.ledger_hash)) {
+        request.message.ledger_hash = options.ledger_hash;
+    }
+    if (options.marker) {
+        request.message.marker = options.marker;
     }
 
     return request;
@@ -389,11 +487,15 @@ function getRelationType(type) {
     switch (type) {
         case 'trustline':
             return 0;
+            break;
         case 'authorize':
             return 1;
+            break;
         case 'freeze':
             return 3;
-
+            break;
+        default:
+            return null;
     }
 }
 /**
@@ -425,7 +527,7 @@ Remote.prototype.__requestAccount = function(type, options, request, filter) {
     }
     request.selectLedger(ledger);
 
-    if (utils.isValidAddress(peer)) {
+    if (peer && utils.isValidAddress(peer)) {
         request.message.peer = peer;
     }
     if (Number(limit)) {
@@ -451,7 +553,7 @@ Remote.prototype.__requestAccount = function(type, options, request, filter) {
 Remote.prototype.requestAccountInfo = function(options) {
     var request = new Request(this);
 
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         request.message.type = new Error('invalid options type');
         return request;
     }
@@ -472,7 +574,7 @@ Remote.prototype.requestAccountInfo = function(options) {
 Remote.prototype.requestAccountTums = function(options) {
     var request = new Request(this);
 
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         request.message.type = new Error('invalid options type');
         return request;
     }
@@ -493,7 +595,7 @@ Remote.prototype.requestAccountTums = function(options) {
 Remote.prototype.requestAccountRelations = function(options) {
     var request = new Request(this);
 
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         request.message.type = new Error('invalid options type');
         return request;
     }
@@ -525,7 +627,7 @@ Remote.prototype.requestAccountRelations = function(options) {
 Remote.prototype.requestAccountOffers = function(options) {
     var request = new Request(this);
 
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         request.message.type = new Error('invalid options type');
         return request;
     }
@@ -555,7 +657,7 @@ Remote.prototype.requestAccountTx = function(options) {
         return data;
     });
 
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         request.message.type = new Error('invalid options type');
         return request;
     }
@@ -605,7 +707,7 @@ Remote.prototype.requestAccountTx = function(options) {
  */
 Remote.prototype.requestOrderBook = function(options) {
     var request = new Request(this, 'book_offers');
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         request.message.type = new Error('invalid options type');
         return request;
     }
@@ -627,6 +729,40 @@ Remote.prototype.requestOrderBook = function(options) {
     request.message.taker_pays = taker_pays;
     request.message.taker = options.taker ? options.taker : utils.ACCOUNT_ONE;
     request.message.limit = options.limit;
+    return request;
+};
+
+/*
+ * request brokerage,
+ * @param options
+ * @returns {Request}
+* */
+Remote.prototype.requestBrokerage = function(options) {
+    var request = new Request(this, 'Fee_Info');
+    if (options === null || typeof options !== 'object') {
+        request.message.type = new Error('invalid options type');
+        return request;
+    }
+    var issuer = options.issuer;
+    var app = options.app;
+    var currency = options.currency;
+    if (!utils.isValidAddress(issuer)) {
+        request.message.account = new Error('issuer parameter is invalid');
+        return request;
+    }
+    if(!/^[0-9]*[1-9][0-9]*$/.test(app)){//正整数
+        request.message.app = new Error('invalid app, it is a positive integer.');
+        return request;
+    }
+    if(!utils.isValidCurrency(currency)){//正整数
+        request.message.currency = new Error('invalid currency.');
+        return request;
+    }
+
+    request.message.issuer = issuer;
+    request.message.AppType = app;
+    request.message.currency = currency;
+    request.message.ledger_index = 'validated';
     return request;
 };
 // ---------------------- path find request --------------------
@@ -654,12 +790,13 @@ Remote.prototype.requestPathFind = function(options) {
                 choice: item.source_amount
             });
             _result.push({
-                choice: utils.parseAmount(item.source_amount), key: key
+                choice: utils.parseAmount(item.source_amount),
+                key: key
             });
         }
         return _result;
     });
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         request.message.type = new Error('invalid options type');
         return request;
     }
@@ -741,7 +878,7 @@ function ToAmount(amount) {
     }
     if (amount.currency === currency) {
         // return new String(parseInt(Number(amount.value) * 1000000.00));
-        return new String(parseInt(new bignumber(amount.value).mul(1000000.00)));
+        return String(parseInt(new bignumber(amount.value).mul(1000000.00)));
     }
     return amount;
 }
@@ -756,7 +893,7 @@ function ToAmount(amount) {
  */
 Remote.prototype.buildPaymentTx = function(options) {
     var tx = new Transaction(this);
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         tx.tx_json.obj = new Error('invalid options type');
         return tx;
     }
@@ -783,6 +920,142 @@ Remote.prototype.buildPaymentTx = function(options) {
     return tx
 };
 
+Remote.prototype.initContract = function(options) {
+    var tx = new Transaction(this);
+    if (options === null || typeof options !== 'object') {
+        tx.tx_json.obj = new Error('invalid options type');
+        return tx;
+    }
+    var account = options.account;
+    var amount = options.amount;
+    var payload = options.payload;
+    var params = options.params || [];
+    var abi = options.abi;
+    if (!utils.isValidAddress(account)) {
+        tx.tx_json.account = new Error('invalid address');
+        return tx;
+    }
+    if (isNaN(amount)) {
+        tx.tx_json.amount = new Error('invalid amount');
+        return tx;
+    }
+    if(typeof payload !== 'string'){
+        tx.tx_json.payload = new Error('invalid payload: type error.');
+        return tx;
+    }
+    if (!Array.isArray(params)) {
+        tx.tx_json.params =  new Error('invalid params: type error.');
+        return tx;
+    }
+    if (!abi) {
+        tx.tx_json.abi =  new Error('not found abi');
+        return tx;
+    }
+    if (!Array.isArray(abi)) {
+        tx.tx_json.params =  new Error('invalid abi: type error.');
+        return tx;
+    }
+
+    var tum3 = new Tum3();
+    tum3.mc.defaultAccount = account;
+    var MyContract = tum3.mc.contract(abi);
+    var contractData = MyContract.new.getData.apply(null, params.concat({data: payload}));
+
+    tx.tx_json.TransactionType = 'AlethContract';
+    tx.tx_json.Account = account;
+    tx.tx_json.Amount = Number(amount) * 1000000;
+    tx.tx_json.Method = 0;
+    tx.tx_json.Payload = utils.stringToHex(contractData);
+    return tx
+};
+
+Remote.prototype.invokeContract = function(options) {
+    var tx = new Transaction(this);
+    if (options === null || typeof options !== 'object') {
+        tx.tx_json.obj =  new Error('invalid options type');
+        return tx;
+    }
+    var account = options.account;
+    var des = options.destination;
+    var func = options.func; //函数名及函数参数
+    var abi = options.abi;
+
+    if (!utils.isValidAddress(account)) {
+        tx.tx_json.account = new Error('invalid address');
+        return tx;
+    }
+    if (!utils.isValidAddress(des)) {
+        tx.tx_json.des = new Error('invalid destination');
+        return tx;
+    }
+    if(typeof func !== 'string' || func.indexOf('(') < 0  || func.indexOf(')') < 0){
+        tx.tx_json.func =  new Error('invalid func, func must be string');
+        return tx;
+    }
+    if (!abi) {
+        tx.tx_json.abi =  new Error('not found abi');
+        return tx;
+    }
+    if (!Array.isArray(abi)) {
+        tx.tx_json.params =  new Error('invalid abi: type error.');
+        return tx;
+    }
+    this.fun = func.substring(0, func.indexOf('('));
+
+    var tum3 = new Tum3();
+    tum3.mc.defaultAccount = account;
+    var MyContract = tum3.mc.contract(abi);
+    this.abi = abi;
+    var myContractInstance = MyContract.at(des);// initiate contract for an address
+    // try {
+        var result = eval('myContractInstance.' + func);// call constant function
+    // }catch (e){
+    //     tx.tx_json.foo = new Error('invalid foo, not found this function.' + e);
+    //     return tx;
+    // }
+
+    if(!result){
+        console.log('result: ', result);
+        tx.tx_json.des = new Error('invalid func, no result');
+        return tx;
+    }
+    tx.tx_json.TransactionType = 'AlethContract';
+    tx.tx_json.Account = account;
+    tx.tx_json.Method = 1;
+    tx.tx_json.Destination = des;
+    tx.tx_json.Args = [];
+    tx.tx_json.Args.push({Arg: {Parameter: utils.stringToHex(result.substr(2,result.length)), ContractParamsType:0}});
+    return tx;
+};
+
+Remote.prototype.AlethEvent = function(options) {
+    var request =  new Request(this, 'aleth_eventlog', function(data) {
+        return data;
+    });
+
+    if (typeof options !== 'object') {
+        request.message.obj =  new Error('invalid options type');
+        return request;
+    }
+    var des = options.destination;
+    var abi = options.abi;
+
+    if (!utils.isValidAddress(des)) {
+        request.message.des = new Error('invalid destination');
+        return request;
+    }
+    if (!abi) {
+        request.message.abi =  new Error('not found abi');
+        return request;
+    }
+    if (!Array.isArray(abi)) {
+        request.message.params =  new Error('invalid abi: type error.');
+        return request;
+    }
+    this.abi = abi;
+    request.message.Destination = des;
+    return request;
+};
 /**
  * contract
  * @param options
@@ -793,7 +1066,7 @@ Remote.prototype.buildPaymentTx = function(options) {
  */
 Remote.prototype.deployContractTx = function(options) {
     var tx = new Transaction(this);
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         tx.tx_json.obj = new Error('invalid options type');
         return tx;
     }
@@ -842,7 +1115,7 @@ Remote.prototype.deployContractTx = function(options) {
  */
 Remote.prototype.callContractTx = function(options) {
     var tx = new Transaction(this);
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         tx.tx_json.obj =  new Error('invalid options type');
         return tx;
     }
@@ -888,13 +1161,65 @@ Remote.prototype.callContractTx = function(options) {
 
 Remote.prototype.buildSignTx = function(options) {
     var tx = new Transaction(this);
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         tx.tx_json.obj =  new Error('invalid options type');
         return tx;
     }
 
     tx.tx_json.TransactionType = 'Signer';
     tx.tx_json.blob = options.blob;
+
+    return tx;
+};
+
+/**
+ * Brokerage 设置挂单手续费
+ * @param options
+ *    account, required
+ *    mol|molecule, required
+ *    den|denominator, required
+ *    app, required
+ *    amount, required
+ * @returns {Transaction}
+ */
+Remote.prototype.buildBrokerageTx = function(options) {
+    var tx = new Transaction(this);
+    if (options === null || typeof options !== 'object') {
+        tx.tx_json.obj = new Error('invalid options type');
+        return tx;
+    }
+    var account = options.account;
+    var mol = options.mol || options.molecule;
+    var den = options.den || options.denominator;
+    var app = options.app;
+    var amount = options.amount;
+    if (!utils.isValidAddress(account)) {
+        tx.tx_json.src = new Error('invalid address');
+        return tx;
+    }
+    if(!/^\d+$/.test(mol)){//(正整数 + 0)
+        tx.tx_json.mol = new Error('invalid mol, it is a positive integer or zero.');
+        return tx;
+    }
+    if(!/^[0-9]*[1-9][0-9]*$/.test(den) || !/^[0-9]*[1-9][0-9]*$/.test(app)){//正整数
+        tx.tx_json.den = new Error('invalid den/app, it is a positive integer.');
+        return tx;
+    }
+    if(mol > den){
+        tx.tx_json.app = new Error('invalid mol/den, molecule can not exceed denominator.');
+        return tx;
+    }
+    if (!utils.isValidAmount(amount)) {
+        tx.tx_json.amount = new Error('invalid amount');
+        return tx;
+    }
+
+    tx.tx_json.TransactionType = 'Brokerage';
+    tx.tx_json.Account = account; //管理员账号
+    tx.tx_json.OfferFeeRateNum = mol; //分子(正整数 + 0)
+    tx.tx_json.OfferFeeRateDen = den; //分母(正整数)
+    tx.tx_json.AppType = app; //应用来源(正整数)
+    tx.tx_json.Amount = ToAmount(amount); //币种,这里amount字段中的value值只是占位，没有实际意义。
 
     return tx;
 };
@@ -980,7 +1305,7 @@ Remote.prototype.__buildRelationSet = function(options, tx) {
  */
 Remote.prototype.buildRelationTx = function(options) {
     var tx = new Transaction(this);
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         tx.tx_json.obj =  new Error('invalid options type');
         return tx;
     }
@@ -1089,7 +1414,7 @@ Remote.prototype.__buildSignerSet = function(options, tx) {
  */
 Remote.prototype.buildAccountSetTx = function(options) {
     var tx = new Transaction(this);
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         tx.tx_json.obj =  new Error('invalid options type');
         return tx;
     }
@@ -1121,7 +1446,7 @@ Remote.prototype.buildAccountSetTx = function(options) {
  */
 Remote.prototype.buildOfferCreateTx = function(options) {
     var tx = new Transaction(this);
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         tx.tx_json.obj =  new Error('invalid options type');
         return tx;
     }
@@ -1130,6 +1455,7 @@ Remote.prototype.buildOfferCreateTx = function(options) {
     var src = options.source || options.from || options.account;
     var taker_gets = options.taker_gets || options.pays;
     var taker_pays = options.taker_pays || options.gets;
+    var app = options.app;
 
     if (!utils.isValidAddress(src)) {
         tx.tx_json.src = new Error('invalid source address');
@@ -1139,29 +1465,34 @@ Remote.prototype.buildOfferCreateTx = function(options) {
         tx.tx_json.offer_type = new Error('invalid offer type');
         return tx;
     }
-    var taker_gets2, taker_pays2;
+
     if (typeof taker_gets === 'string' && !Number(taker_gets)) {
-        tx.tx_json.taker_gets2 = new Error('invalid to pays amount');
+        tx.tx_json.taker_gets = new Error('invalid to pays amount');
         return tx;
     }
     if (typeof taker_gets === 'object' && !utils.isValidAmount(taker_gets)) {
-        tx.tx_json.taker_gets2 = new Error('invalid to pays amount object');
+        tx.tx_json.taker_gets = new Error('invalid to pays amount object');
         return tx;
     }
     if (typeof taker_pays === 'string' && !Number(taker_pays)) {
-        tx.tx_json.taker_pays2 = new Error('invalid to gets amount');
+        tx.tx_json.taker_pays = new Error('invalid to gets amount');
         return tx;
     }
     if (typeof taker_pays === 'object' && !utils.isValidAmount(taker_pays)) {
-        tx.tx_json.taker_pays2 = new Error('invalid to gets amount object');
+        tx.tx_json.taker_pays = new Error('invalid to gets amount object');
+        return tx;
+    }
+    if(app && !/^[0-9]*[1-9][0-9]*$/.test(app)) {//正整数
+        tx.tx_json.app = new Error('invalid app, it is a positive integer.');
         return tx;
     }
 
     tx.tx_json.TransactionType = 'OfferCreate';
     if (offer_type === 'Sell') tx.setFlags(offer_type);
+    if(app) tx.tx_json.AppType = app;
     tx.tx_json.Account = src;
-    tx.tx_json.TakerPays = taker_pays2 ? taker_pays2 : ToAmount(taker_pays);
-    tx.tx_json.TakerGets = taker_gets2 ? taker_gets2 : ToAmount(taker_gets);
+    tx.tx_json.TakerPays = typeof taker_pays === 'object' ? ToAmount(taker_pays) : taker_pays;
+    tx.tx_json.TakerGets = typeof taker_gets === 'object' ? ToAmount(taker_gets) : taker_gets;
 
     return tx;
 };
@@ -1175,7 +1506,7 @@ Remote.prototype.buildOfferCreateTx = function(options) {
  */
 Remote.prototype.buildOfferCancelTx = function(options) {
     var tx = new Transaction(this);
-    if (typeof options !== 'object') {
+    if (options === null || typeof options !== 'object') {
         tx.tx_json.obj =  new Error('invalid options type');
         return tx;
     }

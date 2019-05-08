@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>base_lib demo</title>
-    <script src="./base.js"></script>
+    <title>jingtum_base_lib test</title>
+    <!--<script src="dist/jingtum-base-1.2.1.js"></script>-->
+    <script src="dist/jingtum-base-1.2.1.min.js"></script>
 </head>
 <body>
 <script type="text/javascript">
-    //browserify -r ./index.js:base -o base.js
-
-    let base = require('base');
+    let base = jingtum_base_lib;
     let Wallet = base.Wallet;
+    console.log(base, Wallet);
     console.log('new Wallet: ',Wallet.generate());
     console.log('fromSecret: ',Wallet.fromSecret('ssvUvQ18TR1Sa2gvjKHRimKLV3hsb'));
     console.log('isValidAddress: ',Wallet.isValidAddress('jUsUiLdi7txBGW8Sfese6JVP8XTbAWohRy'));

@@ -92,47 +92,47 @@ describe('Wallet', function() {
 	describe('isValidSecret', function() {
 		it('should generate one from secret', function() {
 			var ret = Wallet.isValidSecret(VALID_SECRET);
-			expect(ret).to.be.equal.true;
+			expect(ret).to.be.true;
 		});
 
 		it('should fail when null secret', function() {
 			var ret = Wallet.isValidSecret(INVALID_SECRET1);
-			expect(ret).to.be.equal.false;
+			expect(ret).to.be.false;
 		});
 
 		it('should fail when undefined secret', function() {
 			var ret = Wallet.isValidSecret(INVALID_SECRET2);
-			expect(ret).to.be.equal.false;
+			expect(ret).to.be.false;
 		});
 
 		it('should fail when empty secret', function() {
 			var ret = Wallet.isValidSecret(INVALID_SECRET3);
-			expect(ret).to.be.equal.false;
+			expect(ret).to.be.false;
 		});
 
 		it('should fail when too short secret', function() {
 			var ret = Wallet.isValidSecret(INVALID_SECRET4);
-			expect(ret).to.be.equal.false;
+			expect(ret).to.be.false;
 		});
 
 		it('should fail when too long secret', function() {
 			var ret = Wallet.isValidSecret(INVALID_SECRET5);
-			expect(ret).to.be.equal.false;
+			expect(ret).to.be.false;
 		});
 
 		it('should fail when tail string', function() {
 			var ret = Wallet.isValidSecret(INVALID_SECRET6);
-			expect(ret).to.be.equal.false;
+			expect(ret).to.be.false;
 		});
 
 		it('should fail when not start with s', function() {
 			var ret = Wallet.isValidSecret(INVALID_SECRET7);
-			expect(ret).to.be.equal.false;
+			expect(ret).to.be.false;
 		});
 
 		it('should fail when double secret', function() {
 			var ret = Wallet.isValidSecret(INVALID_SECRET8);
-			expect(ret).to.be.equal.false;
+			expect(ret).to.be.false;
 		});
 	});
 

@@ -37,6 +37,8 @@ Wallet.generate = function() {
  */
 Wallet.fromSecret = function(secret) {
 	try {
+		if(!secret)
+			return null;
 		var keypair = keypairs.deriveKeyPair(secret);
 		var address = keypairs.deriveAddress(keypair.publicKey);
 		return {secret: secret, address: address};
@@ -122,8 +124,8 @@ Wallet.prototype.secret = function() {
 Wallet.prototype.toJson = function() {
 	if (!this._keypairs) return null;
 	return {
-		secret: secret(),
-		address: address()
+		secret: this.secret(),
+		address: this.address()
 	};
 };
 

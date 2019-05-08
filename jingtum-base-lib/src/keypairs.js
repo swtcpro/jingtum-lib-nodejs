@@ -4,9 +4,10 @@ var hashjs    = require('hash.js');
 var EC        = require('elliptic').ec;
 var ec        = new EC('secp256k1');
 var secp256k1 = require('./secp256k1');
-var assert    = require('assert');
 var hexToBytes = require('./utils').hexToBytes;
 var bytesToHex = require('./utils').bytesToHex;
+var seqEqual = require('./utils').seqEqual;
+var addressCodec = require("swtc-address-codec")();
 
 var SEED_PREFIX = 33;
 var ACCOUNT_PREFIX = 0;
@@ -18,74 +19,15 @@ function sha256(bytes) {
 	return hashjs.sha256().update(bytes).digest();
 }
 
-/**
- * concat an item and a buffer
- * @param {integer} item1, should be an integer
- * @param {buffer} buf2, a buffer
- * @returns {buffer} new Buffer
- */
-function bufCat0(item1, buf2) {
-	var buf = new Buffer(1 + buf2.length);
-	buf[0] = item1;
-	buf2.copy(buf, 1);
-	return buf;
-}
-/**
- * concat one buffer and another
- * @param {buffer} item1, should be an integer
- * @param {buffer} buf2, a buffer
- * @returns {buffer} new Buffer
- */
-function bufCat1(buf1, buf2) {
-	var buf = new Buffer(buf1.length + buf2.length);
-	buf1.copy(buf);
-	buf2.copy(buf, buf1.length);
-	return buf;
-}
-
-/**
- * encode use jingtum base58 encoding
- * including version + data + checksum
- * @param {integer} version
- * @param {buffer} bytes
- * @returns {string}
- * @private
- */
-function __encode(version, bytes) {
-	var buffer = bufCat0(version, bytes);
-	var checksum = new Buffer(sha256(sha256(buffer)).slice(0, 4));
-	var ret = bufCat1(buffer, checksum);
-	return base58.encode(ret);
-}
-/**
- * decode encoded input,
- * 	too small or invalid checksum will throw exception
- * @param {integer} version
- * @param {string} input
- * @returns {buffer}
- * @private
- */
-function __decode(version, input) {
-	var bytes = base58.decode(input);
-	if (!bytes || bytes[0] !== version || bytes.length < 5) {
-		throw new Error('invalid input size');
-	}
-	var computed = sha256(sha256(bytes.slice(0, -4))).slice(0, 4);
-	var checksum = bytes.slice(-4);
-	for (var i = 0; i !== 4; i += 1) {
-		if (computed[i] !== checksum[i])
-			throw new Error('invalid checksum');
-	}
-	return bytes.slice(1, -4);
-}
+exports.__encode = addressCodec.encodeAddress;
+exports.__decode = addressCodec.decodeAddress;
 
 /**
  * generate random bytes and encode it to secret
  * @returns {string}
  */
 exports.generateSeed = function() {
-	var randBytes = brorand(16);
-	return __encode(SEED_PREFIX, randBytes);
+    return addressCodec.encodeSeed(brorand(16), "secp256k1")
 };
 
 /**
@@ -102,6 +44,11 @@ function derivePrivateKey(seed) {
   return secp256k1.ScalarMultiple(publicGen.encodeCompressed(), 0).add(privateGen).mod(order);
 }
 
+function verifyCheckSum(bytes) {
+    var computed = sha256(sha256(bytes.slice(0, -4))).slice(0, 4);
+    var checksum = bytes.slice(-4);
+    return seqEqual(computed, checksum);
+}
 /**
  * derive keypair from secret
  * @param {string} secret
@@ -109,8 +56,15 @@ function derivePrivateKey(seed) {
  */
 exports.deriveKeyPair = function(secret) {
 	var prefix = '00';
-	var entropy = __decode(SEED_PREFIX, secret);
-	var entropy = base58.decode(secret).slice(1, -4);
+	var buf = base58.decode(secret);
+
+	if(!buf || buf[0] !== SEED_PREFIX || buf.length < 5){
+        throw new Error('invalid_input_size');
+    }
+    if (!verifyCheckSum(buf)) {
+        throw new Error('checksum_invalid');
+    }
+    var entropy = buf.slice(1, -4);
 	var privateKey = prefix + derivePrivateKey(entropy).toString(16, 64).toUpperCase();
 	var publicKey = bytesToHex(ec.keyFromPrivate(privateKey.slice(2)).getPublic().encodeCompressed());
 	return { privateKey: privateKey, publicKey: publicKey };
@@ -134,8 +88,8 @@ exports.deriveKeyPairWithKey = function(key) {
 exports.deriveAddress = function(publicKey) {
 	var bytes = hexToBytes(publicKey);
 	var hash256 = hashjs.sha256().update(bytes).digest();
-	var input = new Buffer(hashjs.ripemd160().update(hash256).digest());
-	return __encode(ACCOUNT_PREFIX, input);
+	var hash160 = hashjs.ripemd160().update(hash256).digest();
+    return  addressCodec.encodeAccountID(hash160);
 };
 
 /**
@@ -144,12 +98,7 @@ exports.deriveAddress = function(publicKey) {
  * @returns {boolean}
  */
 exports.checkAddress = function(address) {
-	try {
-		__decode(ACCOUNT_PREFIX, address);
-		return true;
-	} catch (err) {
-		return false;
-	}	
+    return addressCodec.isValidAddress(address);
 };
 
 /**
@@ -160,7 +109,7 @@ exports.checkAddress = function(address) {
  */
 exports.convertAddressToBytes  = function(address) {
     try {
-        return __decode(ACCOUNT_PREFIX, address);
+        return addressCodec.decodeAddress(address);
 
     } catch (err) {
         throw new Error('convertAddressToBytes error!');
@@ -174,7 +123,7 @@ exports.convertAddressToBytes  = function(address) {
 //Wallet.prototype.convertBytesToAddress= function(bytes) {
 exports.convertBytesToAddress= function(bytes) {
     try {
-        return __encode(ACCOUNT_PREFIX, bytes);
+        return addressCodec.encodeAddress(bytes);
 
     } catch (err) {
         throw new Error('convertBytesToAddress error!');

@@ -63,13 +63,33 @@ function stringToHex(s) {
     return result;
 }
 
+function string2Hex(s) {
+    var zero = '0000000000000000000000000000000000000000000000000000000000000000';
+    var result = '';
+    for (var i=0; i<s.length; i++) {
+        var b = s.charCodeAt(i);
+        result += b < 16 ? '0' + b.toString(16) : b.toString(16);
+    }
+    if(result.length < 64)
+        result += zero.substr(result.length);
+    return result;
+}
+function number2Hex(n) {
+    n = n.toString(16);
+    var zero = '0000000000000000000000000000000000000000000000000000000000000000';
+    return zero.substr(0, 64 - n.length) + n;
+}
+function hex2Number(h) {
+    return parseInt(h, 16);
+}
+
 /**
  * check {value: '', currency:'', issuer: ''}
  * @param amount
  * @returns {boolean}
  */
 function isValidAmount(amount) {
-    if (typeof amount !== 'object') {
+    if (amount === null || typeof amount !== 'object') {
         return false;
     }
     // check amount value
@@ -99,7 +119,7 @@ function isValidAmount(amount) {
  * @returns {boolean}
  */
 function isValidAmount0(amount) {
-    if (typeof amount !== 'object') {
+    if (amount === null || typeof amount !== 'object') {
         return false;
     }
     // check amount currency
@@ -481,7 +501,7 @@ function processTx(txn, account) {
         /**
          * TODO now only get offer related effects, need to process other entry type
          */
-        if (node.entryType === 'Offer') {
+        if (node && node.entryType === 'Offer') {
             // for new and cancelled offers
             var fieldSet = node.fields;
             var sell = node.fields.Flags & LEDGER_FLAGS.offer.Sell;
@@ -503,6 +523,8 @@ function processTx(txn, account) {
                     effect.got = AmountSubtract(parseAmount(node.fieldsPrev.TakerPays), parseAmount(node.fields.TakerPays));
                     effect.paid = AmountSubtract(parseAmount(node.fieldsPrev.TakerGets), parseAmount(node.fields.TakerGets));
                     effect.type = sell ? 'sold' : 'bought';
+                    if(node.fields.OfferFeeRateNum)
+                        effect.rate = new bignumber(parseInt(node.fields.OfferFeeRateNum, 16)).div(parseInt(node.fields.OfferFeeRateDen, 16)).toNumber();
                 } else {
                     // offer_funded, offer_created or offer_cancelled offer effect
                     effect.effect = node.diffType === 'CreatedNode' ? 'offer_created' : node.fieldsPrev.TakerPays ? 'offer_funded' : 'offer_cancelled';
@@ -513,6 +535,8 @@ function processTx(txn, account) {
                         effect.got = AmountSubtract(parseAmount(node.fieldsPrev.TakerPays), parseAmount(node.fields.TakerPays));
                         effect.paid = AmountSubtract(parseAmount(node.fieldsPrev.TakerGets), parseAmount(node.fields.TakerGets));
                         effect.type = sell ? 'sold' : 'bought';
+                        if(node.fields.OfferFeeRateNum)
+                            effect.rate = new bignumber(parseInt(node.fields.OfferFeeRateNum, 16)).div(parseInt(node.fields.OfferFeeRateDen, 16)).toNumber();
                     }
                     // 3. offer_created
                     if (effect.effect === 'offer_created') {
@@ -541,7 +565,12 @@ function processTx(txn, account) {
                 effect.counterparty =  { account: node.fields.Account, seq: node.fields.Sequence, hash: node.PreviousTxnID || node.fields.PreviousTxnID };
                 effect.paid = AmountSubtract(parseAmount(node.fieldsPrev.TakerPays), parseAmount(node.fields.TakerPays));
                 effect.got = AmountSubtract(parseAmount(node.fieldsPrev.TakerGets), parseAmount(node.fields.TakerGets));
-                effect.type = sell ? 'bought' : 'sold';
+                if(result.offertype === 'buy' && sell || result.offertype === 'sell' && !sell){
+                    effect.type = sell ? 'bought' : 'sold';
+                }else {
+                    effect.type = sell ? 'sold' : 'bought';
+                }
+
             }
             // add price
             if ((effect.gets && effect.pays) || (effect.got && effect.paid)) {
@@ -553,7 +582,7 @@ function processTx(txn, account) {
                 effect.price = getPrice(effect, (created || funded || cancelled || bought ||  partially_funded ));
             }
         }
-        if(result.type === 'offereffect' && node.entryType === 'AccountRoot'){
+        if(result.type === 'offereffect' && node && node.entryType === 'AccountRoot'){
             if(node.fields.RegularKey === account){
                 effect.effect = 'set_regular_key';
                 effect.type = 'null';
@@ -561,6 +590,10 @@ function processTx(txn, account) {
                 effect.regularkey = account;
             }
         }
+        if(node && node.entryType === 'Brokerage'){
+            result.rate = new bignumber(parseInt(node.fields.OfferFeeRateNum, 16)).div(parseInt(node.fields.OfferFeeRateDen, 16)).toNumber();
+        }
+
         // add effect
         if (!_.isEmpty(effect)) {
             if (node.diffType === 'DeletedNode' && effect.effect !== 'offer_bought') {
@@ -574,7 +607,17 @@ function processTx(txn, account) {
      * TODO check cross gateway when parse more effect, specially trust related effects, now ignore it
      *
      */
-
+    for(var i = 0; i < result.effects.length; i++){
+        var e = result.effects[i];
+        if(result.rate && e.effect === 'offer_bought'){
+            e.rate = result.rate;
+            e.got.value = e.got.value * (1 - e.rate);
+        }
+        if(e.rate && (e.effect === 'offer_funded' || e.effect === 'offer_partially_funded')){
+            e.got.value = e.got.value * (1 - e.rate);
+        }
+    }
+    delete result.rate;
     return result;
 }
 function arraySet(count, value) {
@@ -593,6 +636,9 @@ var ACCOUNT_ONE  =  config.ACCOUNT_ONE;
 module.exports = {
     hexToString: hexToString,
     stringToHex: stringToHex,
+    string2Hex: string2Hex,
+    number2Hex: number2Hex,
+    hex2Number: hex2Number,
     isValidAmount: isValidAmount,
     isValidAmount0: isValidAmount0,
     parseAmount: parseAmount,
